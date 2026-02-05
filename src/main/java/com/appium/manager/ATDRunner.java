@@ -36,8 +36,14 @@ public class ATDRunner {
         setLog4jCompatibility();
         capabilities = Capabilities.getInstance();
         writeServiceConfig();
-        AppiumServerManager appiumServerManager = new AppiumServerManager();
-        appiumServerManager.startAppiumServer("127.0.0.1"); //Needs to be removed
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode rootNode = mapper.readTree(capabilities.toString);
+      if (isCloudExecution(rootNode)) {
+        System.out.println("☁️ Cloud execution detected (pCloudy). Skipping local Appium server startup.");
+      } else {
+        System.out.println("🖥️ Local execution detected. Starting Appium server...");
+        appiumServerManager.startAppiumServer("127.0.0.1");
+}
         List<Device> devices = Devices.getConnectedDevices();
         ATDExecutor = new ATDExecutor(devices);
         createOutputDirectoryIfNotExist();
@@ -159,5 +165,18 @@ public class ATDRunner {
             platformDirectory.mkdirs();
         }
     }
+
+    public boolean isCloudExecution(JsonNode rootNode) {
+    JsonNode cloudNode = rootNode
+        .path("serverConfig")
+        .path("server")
+        .path("plugin")
+        .path("device-farm")
+        .path("cloud");
+
+    return cloudNode.isObject()
+        && cloudNode.hasNonNull("cloudName")
+        && !cloudNode.get("cloudName").asText().isBlank();
+}
 
 }
