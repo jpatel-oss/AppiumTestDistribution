@@ -7,14 +7,18 @@ import io.appium.java_client.service.local.AppiumServiceBuilder;
 import io.appium.java_client.service.local.flags.GeneralServerFlag;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
+import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.ServerSocket;
 import java.net.URL;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.time.Duration;
+
+import static com.appium.utils.OverriddenVariable.getOverriddenStringValue;
 
 public class AppiumServerManager {
 
@@ -32,15 +36,43 @@ public class AppiumServerManager {
     }
 
     private URL getAppiumUrl() {
+        String deviceToExecute = getOverriddenStringValue("DEVICE_TO_EXECUTE", "local");
+
+        if ("devicefarm".equalsIgnoreCase(deviceToExecute)) {
+            try {
+                // Get hub URL from capabilities when using device farm
+                JSONObject serverConfig = Capabilities.getInstance()
+                        .getCapabilityObjectFromKey("serverConfig");
+                String hubUrl = serverConfig
+                        .getJSONObject("server")
+                        .getJSONObject("plugin")
+                        .getJSONObject("device-farm")
+                        .getString("hub");
+                LOGGER.info("Using Device Farm hub URL: " + hubUrl);
+                return new URL(hubUrl);
+            } catch (MalformedURLException e) {
+                LOGGER.error("Invalid hub URL in device-farm configuration", e);
+                throw new RuntimeException("Failed to get device farm hub URL", e);
+            }
+        }
+
+        // Default: return local Appium server URL
         return getAppiumDriverLocalService().getUrl();
     }
 
     public void destroyAppiumNode() {
-        LOGGER.info("Shutting down Appium Server");
-        getAppiumDriverLocalService().stop();
-        if (getAppiumDriverLocalService().isRunning()) {
-            LOGGER.info("AppiumServer didn't shut... Trying to quit again....");
+        String deviceToExecute = getOverriddenStringValue("DEVICE_TO_EXECUTE", "local");
+
+        // Only destroy local Appium server, not remote device farm hub
+        if (!"devicefarm".equalsIgnoreCase(deviceToExecute)) {
+            LOGGER.info("Shutting down Appium Server");
             getAppiumDriverLocalService().stop();
+            if (getAppiumDriverLocalService().isRunning()) {
+                LOGGER.info("AppiumServer didn't shut... Trying to quit again....");
+                getAppiumDriverLocalService().stop();
+            }
+        } else {
+            LOGGER.info("Using Device Farm - skipping local Appium server shutdown");
         }
     }
 
@@ -119,7 +151,7 @@ public class AppiumServerManager {
     }
 
     private AppiumServiceBuilder
-            getAppiumServiceBuilderWithUserAppiumPath(String appiumServerPath) {
+    getAppiumServiceBuilderWithUserAppiumPath(String appiumServerPath) {
         return new AppiumServiceBuilder().withAppiumJS(
                 new File(appiumServerPath));
     }
