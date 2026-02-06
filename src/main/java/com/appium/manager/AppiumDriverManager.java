@@ -7,8 +7,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.android.options.UiAutomator2Options;
 import io.appium.java_client.ios.IOSDriver;
+import io.appium.java_client.ios.options.XCUITestOptions;
 import io.appium.java_client.windows.WindowsDriver;
+import io.appium.java_client.windows.options.WindowsOptions;
 import lombok.SneakyThrows;
 import org.apache.log4j.Logger;
 import org.openqa.selenium.Capabilities;
@@ -16,6 +19,7 @@ import org.openqa.selenium.remote.DesiredCapabilities;
 
 import java.io.File;
 import java.net.URL;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static com.appium.manager.AppiumDeviceManager.getMobilePlatform;
@@ -57,18 +61,26 @@ public class AppiumDriverManager {
                                             String remoteWDHubIP) {
         AppiumDriver currentDriverSession;
         MobilePlatform mobilePlatform = getMobilePlatform();
+        URL url = new URL(remoteWDHubIP+"/wd/hub");
+
         switch (mobilePlatform) {
             case IOS:
-                currentDriverSession = new IOSDriver(new URL(remoteWDHubIP),
-                        desiredCapabilities);
+                // Convert DesiredCapabilities to XCUITestOptions
+                XCUITestOptions iosOptions = new XCUITestOptions();
+                mergeCapabilities(desiredCapabilities, iosOptions);
+                currentDriverSession = new IOSDriver(url, iosOptions);
                 break;
             case ANDROID:
-                currentDriverSession = new AndroidDriver(new URL(remoteWDHubIP),
-                        desiredCapabilities);
+                // Convert DesiredCapabilities to UiAutomator2Options
+                UiAutomator2Options androidOptions = new UiAutomator2Options();
+                mergeCapabilities(desiredCapabilities, androidOptions);
+                currentDriverSession = new AndroidDriver(url, androidOptions);
                 break;
             case WINDOWS:
-                currentDriverSession = new WindowsDriver(new URL(remoteWDHubIP),
-                        desiredCapabilities);
+                // Convert DesiredCapabilities to WindowsOptions
+                WindowsOptions windowsOptions = new WindowsOptions();
+                mergeCapabilities(desiredCapabilities, windowsOptions);
+                currentDriverSession = new WindowsDriver(url, windowsOptions);
                 break;
             default:
                 throw new IllegalStateException("Unexpected value: " + mobilePlatform);
@@ -84,6 +96,17 @@ public class AppiumDriverManager {
         return currentDriverSession;
     }
 
+    /**
+     * Helper method to merge DesiredCapabilities into modern Options classes
+     */
+    private void mergeCapabilities(DesiredCapabilities desiredCapabilities,
+                                   org.openqa.selenium.MutableCapabilities options) {
+        Map<String, Object> capsMap = desiredCapabilities.asMap();
+        for (Map.Entry<String, Object> entry : capsMap.entrySet()) {
+            options.setCapability(entry.getKey(), entry.getValue());
+        }
+    }
+
     // Should be used by Cucumber as well
     public AppiumDriver startAppiumDriverInstance(String testMethodName) {
         return startAppiumDriverInstance(testMethodName, buildDesiredCapabilities(CAPS.get()));
@@ -96,7 +119,7 @@ public class AppiumDriverManager {
     }
 
     public AppiumDriver startAppiumDriverInstance(String testMethodName,
-                                     DesiredCapabilities desiredCapabilities) {
+                                                  DesiredCapabilities desiredCapabilities) {
         LOGGER.info(String.format("startAppiumDriverInstance for %s using capability file: %s",
                 testMethodName, CAPS.get()));
         LOGGER.info("startAppiumDriverInstance");
