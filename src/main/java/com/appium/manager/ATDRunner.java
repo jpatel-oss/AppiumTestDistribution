@@ -6,6 +6,7 @@ import com.appium.device.Devices;
 import com.appium.executor.ATDExecutor;
 import com.appium.filelocations.FileLocations;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.log4j.Logger;
 import org.json.JSONObject;
 
