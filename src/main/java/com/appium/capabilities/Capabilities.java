@@ -59,7 +59,6 @@ public class Capabilities {
                 new JSONObject(),
                 getAllATDOverrideEnvVars(),
                 varParsing);
-        validateCapabilitySchema(loadedCapabilities);
         return loadedCapabilities;
     }
 
