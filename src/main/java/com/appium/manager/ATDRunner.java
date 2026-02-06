@@ -5,6 +5,7 @@ import com.appium.device.Device;
 import com.appium.device.Devices;
 import com.appium.executor.ATDExecutor;
 import com.appium.filelocations.FileLocations;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.log4j.Logger;
 import org.json.JSONObject;
 
@@ -37,7 +38,8 @@ public class ATDRunner {
         capabilities = Capabilities.getInstance();
         writeServiceConfig();
         ObjectMapper mapper = new ObjectMapper();
-        JsonNode rootNode = mapper.readTree(capabilities.toString);
+        JsonNode rootNode = mapper.readTree(capabilities.getCapabilities().toString());
+        AppiumServerManager appiumServerManager = new AppiumServerManager();
       if (isCloudExecution(rootNode)) {
         System.out.println("☁️ Cloud execution detected (pCloudy). Skipping local Appium server startup.");
       } else {
