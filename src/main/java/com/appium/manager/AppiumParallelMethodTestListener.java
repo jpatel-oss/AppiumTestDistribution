@@ -1,6 +1,7 @@
 package com.appium.manager;
 
 import com.annotation.values.SkipIf;
+import com.appium.device.Devices;
 import com.appium.plugin.PluginClI;
 import com.appium.utils.FileFilterParser;
 import com.appium.utils.Helpers;
@@ -118,24 +119,39 @@ public final class AppiumParallelMethodTestListener extends Helpers
     @Override
     public void afterInvocation(IInvokedMethod iInvokedMethod, ITestResult iTestResult) {
         {
+            String deviceUdid = null;
             try {
                 LOGGER.info("Driver Session exissts"
                         + (AppiumDeviceManager.getAppiumDevice() != null)
                         + AppiumDeviceManager.getAppiumDevice());
                 if (!isCloudExecution()
                         && AppiumDeviceManager.getAppiumDevice() != null) {
-                    HashMap<String, String> logs = testLogger.endLogging(iTestResult,
-                            AppiumDeviceManager.getAppiumDevice().getUdid());
+                    deviceUdid = AppiumDeviceManager.getAppiumDevice().getUdid();
+                    HashMap<String, String> logs = testLogger.endLogging(iTestResult, deviceUdid);
                     new FileFilterParser()
-                            .getScreenShotPaths(AppiumDeviceManager.getAppiumDevice()
-                                    .getUdid(), iTestResult);
+                            .getScreenShotPaths(deviceUdid, iTestResult);
                     testResults.set(logs);
                 }
                 if (iInvokedMethod.isTestMethod()) {
                     appiumDriverManager.stopAppiumDriver();
+                    
+                    // Mark device as available after stopping driver
+                    if (deviceUdid != null && !deviceUdid.isEmpty()) {
+                        Devices.setDeviceAvailable(deviceUdid);
+                        LOGGER.info("Device " + deviceUdid + " marked as available after test completion");
+                    }
                 }
             } catch (Exception e) {
                 e.printStackTrace();
+                // Even if there's an error, try to free the device
+                if (deviceUdid != null && !deviceUdid.isEmpty()) {
+                    try {
+                        Devices.setDeviceAvailable(deviceUdid);
+                        LOGGER.info("Device " + deviceUdid + " marked as available in error handler");
+                    } catch (Exception ex) {
+                        LOGGER.error("Failed to mark device as available: " + ex.getMessage());
+                    }
+                }
             }
             SessionContext.remove(Thread.currentThread().getId());
             queueAfterInvocationListener(iInvokedMethod, iTestResult, listeners);
