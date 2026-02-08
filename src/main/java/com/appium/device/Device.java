@@ -24,7 +24,7 @@ public class Device {
     public int totalUtilizationTimeMilliSec;
     public String derivedDataPath;
     public boolean offline;
-    public int sessionStartTime;
+    public long sessionStartTime;
 
     public static class Meta {
         public int revision;
