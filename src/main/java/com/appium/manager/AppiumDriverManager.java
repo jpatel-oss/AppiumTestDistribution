@@ -2,6 +2,8 @@ package com.appium.manager;
 
 import com.appium.capabilities.DesiredCapabilityBuilder;
 import com.appium.capabilities.DriverSession;
+import com.appium.device.Device;
+import com.appium.device.Devices;
 import com.appium.entities.MobilePlatform;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
@@ -20,6 +22,7 @@ import org.openqa.selenium.remote.DesiredCapabilities;
 import java.io.File;
 import java.net.URL;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.appium.manager.AppiumDeviceManager.getMobilePlatform;
@@ -59,32 +62,52 @@ public class AppiumDriverManager {
     @SneakyThrows
     private AppiumDriver createAppiumDriver(DesiredCapabilities desiredCapabilities,
                                             String remoteWDHubIP) {
+
         AppiumDriver currentDriverSession;
         MobilePlatform mobilePlatform = getMobilePlatform();
-        URL url = new URL(remoteWDHubIP+"/wd/hub");
+        URL url = new URL(remoteWDHubIP + "/wd/hub");
+        
+        // Get a free device from device farm
+        Optional<Device> freeDevice = Devices.getFreeDevice();
+        
+        if (!freeDevice.isPresent()) {
+            throw new RuntimeException("No free device available to create driver session");
+        }
+        
+        Device device = freeDevice.get();
+        String deviceUdid = device.getUdid();
+        
+        LOGGER.info("Found free device: " + deviceUdid + " (" + device.getName() + ")");
+        
+        // Mark device as busy
+        Devices.setDeviceBusy(deviceUdid);
 
         switch (mobilePlatform) {
             case IOS:
                 // Convert DesiredCapabilities to XCUITestOptions
                 XCUITestOptions iosOptions = new XCUITestOptions();
                 mergeCapabilities(desiredCapabilities, iosOptions);
+                iosOptions.setUdid(deviceUdid); // Set the device UDID
                 currentDriverSession = new IOSDriver(url, iosOptions);
                 break;
             case ANDROID:
                 // Convert DesiredCapabilities to UiAutomator2Options
                 UiAutomator2Options androidOptions = new UiAutomator2Options();
                 mergeCapabilities(desiredCapabilities, androidOptions);
+                androidOptions.setUdid(deviceUdid); // Set the device UDID
                 currentDriverSession = new AndroidDriver(url, androidOptions);
                 break;
             case WINDOWS:
                 // Convert DesiredCapabilities to WindowsOptions
                 WindowsOptions windowsOptions = new WindowsOptions();
                 mergeCapabilities(desiredCapabilities, windowsOptions);
+                windowsOptions.setCapability("udid", deviceUdid); // Set the device UDID
                 currentDriverSession = new WindowsDriver(url, windowsOptions);
                 break;
             default:
                 throw new IllegalStateException("Unexpected value: " + mobilePlatform);
         }
+        
         Capabilities currentDriverSessionCapabilities = currentDriverSession.getCapabilities();
         LOGGER.info("Session Created for "
                 + AppiumDeviceManager.getMobilePlatform().name()
@@ -153,10 +176,20 @@ public class AppiumDriverManager {
     public void stopAppiumDriver() {
         if (AppiumDriverManager.getDriver() != null
                 && AppiumDriverManager.getDriver().getSessionId() != null) {
+            String udid = (String) AppiumDriverManager.getDriver()
+                    .getCapabilities().getCapability("udid");
+            
             LOGGER.info("Session Deleting ---- "
                     + AppiumDriverManager.getDriver().getSessionId() + "---"
-                    + AppiumDriverManager.getDriver().getCapabilities().getCapability("udid"));
+                    + udid);
+            
             AppiumDriverManager.getDriver().quit();
+            
+            // Mark device as available after quitting driver
+            if (udid != null && !udid.isEmpty()) {
+                Devices.setDeviceAvailable(udid);
+                LOGGER.info("Device " + udid + " marked as available");
+            }
         }
     }
 }
