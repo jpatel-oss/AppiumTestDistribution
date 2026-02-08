@@ -85,10 +85,10 @@ public class Devices {
         device.busy = busy;
 
         // Update device farm if using device farm mode
-        String deviceToExecute = getOverriddenStringValue("DEVICE_TO_EXECUTE", "local");
-        if ("devicefarm".equalsIgnoreCase(deviceToExecute)) {
-            updateDeviceFarmBusyStatus(udid, busy);
-        }
+        // String deviceToExecute = getOverriddenStringValue("DEVICE_TO_EXECUTE", "local");
+        // if ("devicefarm".equalsIgnoreCase(deviceToExecute)) {
+        //     updateDeviceFarmBusyStatus(udid, busy);
+        // }
 
         LOGGER.info("Device " + udid + " busy status set to: " + busy);
         return true;
@@ -100,7 +100,7 @@ public class Devices {
      * @param udid The unique device identifier
      * @return true if device was found and updated, false otherwise
      */
-    public static boolean setDeviceBusy(String udid) {
+    public synchronized static boolean setDeviceBusy(String udid) {
         return setDeviceBusy(udid, true);
     }
 
@@ -218,7 +218,7 @@ public class Devices {
      * 
      * @return Optional containing a free Device, empty if no free device found
      */
-    public static Optional<Device> getFreeDevice() {
+    public synchronized static Optional<Device> getFreeDevice() {
         if (instance == null) {
             LOGGER.warn("No devices loaded. Call getConnectedDevices() first.");
             return Optional.empty();
