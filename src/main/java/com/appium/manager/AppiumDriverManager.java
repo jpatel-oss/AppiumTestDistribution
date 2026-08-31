@@ -65,7 +65,7 @@ public class AppiumDriverManager {
 
         AppiumDriver currentDriverSession;
         MobilePlatform mobilePlatform = getMobilePlatform();
-        URL url = new URL(remoteWDHubIP + "/wd/hub");
+        URL url = new URL(remoteWDHubIP);
         
         // Get a free device from device farm
         Optional<Device> freeDevice = Devices.getFreeDevice();
