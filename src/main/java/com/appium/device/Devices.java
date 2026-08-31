@@ -33,7 +33,7 @@ public class Devices {
             String deviceToExecute = getOverriddenStringValue("DEVICE_TO_EXECUTE", "local");
             Device[] devices;
 
-            if ("devicefarm".equalsIgnoreCase(deviceToExecute)) {
+            if ("device-farm".equalsIgnoreCase(deviceToExecute)) {
                 JSONObject serverConfig = Capabilities.getInstance()
                         .getCapabilityObjectFromKey("serverConfig");
                 String hubUrl = serverConfig
