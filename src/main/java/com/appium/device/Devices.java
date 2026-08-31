@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static com.appium.utils.OverriddenVariable.getOverriddenStringValue;
 
@@ -30,9 +31,9 @@ public class Devices {
     public static List<Device> getConnectedDevices() {
         if (instance == null) {
             String deviceToExecute = getOverriddenStringValue("DEVICE_TO_EXECUTE", "local");
+            Device[] devices;
 
             if ("devicefarm".equalsIgnoreCase(deviceToExecute)) {
-                // Get hub URL from capabilities
                 JSONObject serverConfig = Capabilities.getInstance()
                         .getCapabilityObjectFromKey("serverConfig");
                 String hubUrl = serverConfig
@@ -41,20 +42,52 @@ public class Devices {
                         .getJSONObject("device-farm")
                         .getString("hub");
 
-                // Make API call to hub
                 String response = new Api().getResponse(hubUrl + "/device-farm/api/device");
-                instance = Arrays.asList(new ObjectMapper().readValue(response, Device[].class));
+                devices = new ObjectMapper().readValue(response, Device[].class);
             } else {
-                // Existing local logic
                 AppiumServerManager appiumServerManager = new AppiumServerManager();
                 String remoteWDHubIP = appiumServerManager.getRemoteWDHubIP();
                 URL url = new URL(remoteWDHubIP);
                 String response = new Api().getResponse(url.getProtocol()
                         + "://" + url.getHost() + ":" + url.getPort() + "/device-farm/api/device");
-                instance = Arrays.asList(new ObjectMapper().readValue(response, Device[].class));
+                devices = new ObjectMapper().readValue(response, Device[].class);
             }
+            instance = filterDevicesByUdids(devices);
         }
         return instance;
+    }
+
+    private static List<Device> filterDevicesByUdids(Device[] devices) {
+        String udidsEnv = getOverriddenStringValue("UDIDS", "");
+        if (udidsEnv == null || udidsEnv.trim().isEmpty()) {
+            return Arrays.asList(devices);
+        }
+
+        List<String> requestedUdids = Arrays.stream(udidsEnv.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
+
+        List<Device> filteredDevices = Arrays.stream(devices)
+                .filter(device -> requestedUdids.contains(device.getUdid()))
+                .filter(device -> !device.isBusy())
+                .collect(Collectors.toList());
+
+        LOGGER.info("UDIDS filter applied. Requested: " + requestedUdids
+                + ", Available (not busy): " + filteredDevices.size());
+
+        for (String udid : requestedUdids) {
+            Optional<Device> device = Arrays.stream(devices)
+                    .filter(d -> udid.equals(d.getUdid()))
+                    .findFirst();
+            if (!device.isPresent()) {
+                LOGGER.warn("Device with UDID " + udid + " not found in device farm response.");
+            } else if (device.get().isBusy()) {
+                LOGGER.warn("Device with UDID " + udid + " is busy, skipping.");
+            }
+        }
+
+        return filteredDevices;
     }
 
     /**
