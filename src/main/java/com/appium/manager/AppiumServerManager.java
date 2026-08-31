@@ -38,7 +38,7 @@ public class AppiumServerManager {
     private URL getAppiumUrl() {
         String deviceToExecute = getOverriddenStringValue("DEVICE_TO_EXECUTE", "local");
 
-        if ("devicefarm".equalsIgnoreCase(deviceToExecute)) {
+        if ("device-farm".equalsIgnoreCase(deviceToExecute)) {
             try {
                 // Get hub URL from capabilities when using device farm
                 JSONObject serverConfig = Capabilities.getInstance()
