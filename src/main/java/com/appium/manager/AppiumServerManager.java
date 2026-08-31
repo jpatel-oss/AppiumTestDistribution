@@ -64,7 +64,7 @@ public class AppiumServerManager {
         String deviceToExecute = getOverriddenStringValue("DEVICE_TO_EXECUTE", "local");
 
         // Only destroy local Appium server, not remote device farm hub
-        if (!"devicefarm".equalsIgnoreCase(deviceToExecute)) {
+        if (!"device-farm".equalsIgnoreCase(deviceToExecute)) {
             LOGGER.info("Shutting down Appium Server");
             getAppiumDriverLocalService().stop();
             if (getAppiumDriverLocalService().isRunning()) {
